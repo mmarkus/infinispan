@@ -57,6 +57,7 @@ public class LockControlCommand extends AbstractTransactionBoundaryCommand imple
    private static final Log log = LogFactory.getLog(LockControlCommand.class);
 
    public static final int COMMAND_ID = 3;
+
    private List<Object> keys;
    private boolean implicit = false;
    private boolean unlock = false;
@@ -77,11 +78,20 @@ public class LockControlCommand extends AbstractTransactionBoundaryCommand imple
    public LockControlCommand(Collection<Object> keys, String cacheName, Set<Flag> flags, boolean implicit) {
       super(cacheName);
       if (keys != null) {
-         // defensive copy
+         //building defensive copies in order to support replaceKey operation
+
          this.keys = new ArrayList<Object>(keys);
       } else {
          this.keys = Collections.emptyList();
       }
+      this.flags = flags;
+      this.implicit = implicit;
+   }
+
+   public LockControlCommand(Object key, String cacheName, Set<Flag> flags, boolean implicit) {
+      this(cacheName);
+      this.keys = new ArrayList<Object>();
+      this.keys.add(key);
       this.flags = flags;
       this.implicit = implicit;
    }
@@ -156,6 +166,10 @@ public class LockControlCommand extends AbstractTransactionBoundaryCommand imple
       if (flags != null && !flags.isEmpty()) {
          ctx = new TransactionalInvocationContextFlagsOverride(ctxt, flags);
       }
+      if (log.isTraceEnabled()) log.tracef("Global transaction received is %s (%s)", globalTx,
+                                           System.identityHashCode(globalTx));
+      if (log.isTraceEnabled()) log.tracef("Lock owner is %s(%s)", ctx.getLockOwner(),
+                                           System.identityHashCode(ctx.getLockOwner()));
       return invoker.invoke(ctx, this);
    }
 
@@ -171,7 +185,7 @@ public class LockControlCommand extends AbstractTransactionBoundaryCommand imple
    public void setParameters(int commandId, Object[] args) {
       // TODO: Check duplicated in all commands? A better solution is needed.
       if (commandId != COMMAND_ID)
-         throw new IllegalStateException("Unusupported command id:" + commandId);
+         throw new IllegalStateException("Unsupported command id:" + commandId);
       int i = 0;
       globalTx = (GlobalTransaction) args[i++];
       unlock = (Boolean) args[i++];

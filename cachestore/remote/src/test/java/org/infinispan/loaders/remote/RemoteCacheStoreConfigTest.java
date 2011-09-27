@@ -55,7 +55,7 @@ public class RemoteCacheStoreConfigTest {
 
    @BeforeTest
    public void startUp() {
-      cacheManager = TestCacheManagerFactory.createLocalCacheManager();
+      cacheManager = TestCacheManagerFactory.createLocalCacheManager(false);
       assertEquals(cacheManager.getCache().size(), 0);
       hotRodServer = TestHelper.startHotRodServer(cacheManager);
    }
