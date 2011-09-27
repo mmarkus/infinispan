@@ -149,4 +149,9 @@ public class LocalTxInvocationContext extends AbstractTxInvocationContext {
    public final void setReplayEntryWrapping(boolean replayEntryWrapping) {
       this.replayEntryWrapping = replayEntryWrapping;
    }
+
+   public Transaction getTransaction() {
+      Transaction tx = super.getTransaction();
+      return tx == null ? localTransaction.getTransaction() : tx;
+   }
 }
