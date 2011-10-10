@@ -50,7 +50,6 @@ import org.infinispan.transaction.LocalTransaction;
 import org.infinispan.transaction.TransactionCoordinator;
 import org.infinispan.transaction.TransactionLog;
 import org.infinispan.transaction.TransactionTable;
-import org.infinispan.transaction.xa.GlobalTransaction;
 import org.rhq.helpers.pluginAnnotations.agent.DataType;
 import org.rhq.helpers.pluginAnnotations.agent.DisplayType;
 import org.rhq.helpers.pluginAnnotations.agent.MeasurementType;
@@ -108,7 +107,7 @@ public class TxInterceptor extends CommandInterceptor {
       }
       if (!ctx.isOriginLocal()) {
          if (command.isOnePhaseCommit()) {
-            markCompleted(ctx, command.getGlobalTransaction(), true);
+            txTable.remoteTransactionCommitted(command.getGlobalTransaction());
          } else {
             txTable.remoteTransactionPrepared(command.getGlobalTransaction());
          }
@@ -120,7 +119,11 @@ public class TxInterceptor extends CommandInterceptor {
    public Object visitCommitCommand(TxInvocationContext ctx, CommitCommand command) throws Throwable {
       if (this.statisticsEnabled) commits.incrementAndGet();
       Object result = invokeNextInterceptor(ctx, command);
-      markCompleted(ctx, command.getGlobalTransaction(), true);
+      if (!ctx.isOriginLocal()) {
+         txTable.remoteTransactionCommitted(ctx.getGlobalTransaction());
+      } else {
+         removeLocalTransaction(ctx);
+      }
       transactionLog.logCommit(command.getGlobalTransaction());
       return result;
    }
@@ -129,13 +132,24 @@ public class TxInterceptor extends CommandInterceptor {
    public Object visitRollbackCommand(TxInvocationContext ctx, RollbackCommand command) throws Throwable {
       if (this.statisticsEnabled) rollbacks.incrementAndGet();
       transactionLog.rollback(command.getGlobalTransaction());
-      markCompleted(ctx, command.getGlobalTransaction(), false);
+      if (!ctx.isOriginLocal()) {
+         txTable.remoteTransactionRollback(command.getGlobalTransaction());
+      } else {
+         removeLocalTransaction(ctx);
+      }
       return invokeNextInterceptor(ctx, command);
    }
 
    @Override
    public Object visitLockControlCommand(TxInvocationContext ctx, LockControlCommand command) throws Throwable {
-       return enlistReadAndInvokeNext(ctx, command);
+      enlistIfNeeded(ctx);
+
+      //this step is required for lock control command only, as this command might execute as the first command in a tx.
+      // In this situation the gtx is not associated with it.
+      if (ctx.isOriginLocal())
+         command.setGlobalTransaction(ctx.getGlobalTransaction());
+
+      return invokeNextInterceptor(ctx, command);
    }
 
    @Override
@@ -179,12 +193,16 @@ public class TxInterceptor extends CommandInterceptor {
    }
 
    private Object enlistReadAndInvokeNext(InvocationContext ctx, VisitableCommand command) throws Throwable {
+      enlistIfNeeded(ctx);
+      return invokeNextInterceptor(ctx, command);
+   }
+
+   private void enlistIfNeeded(InvocationContext ctx) throws SystemException {
       if (shouldEnlist(ctx)) {
          LocalTransaction localTransaction = enlist(ctx);
          LocalTxInvocationContext localTxContext = (LocalTxInvocationContext) ctx;
          localTxContext.setLocalTransaction(localTransaction);
       }
-      return invokeNextInterceptor(ctx, command);
    }
 
    private Object enlistWriteAndInvokeNext(InvocationContext ctx, WriteCommand command) throws Throwable {
@@ -197,7 +215,17 @@ public class TxInterceptor extends CommandInterceptor {
          localTxContext.setLocalTransaction(localTransaction);
       }
       Object rv;
-      rv = invokeNextInterceptor(ctx, command);
+      try {
+         rv = invokeNextInterceptor(ctx, command);
+      } catch (Throwable throwable) {
+         if (ctx.isOriginLocal() && ctx.isInTxScope()) {
+            TxInvocationContext txCtx = (TxInvocationContext) ctx;
+            txCtx.getTransaction().setRollbackOnly();
+            final LocalTransaction cacheTransaction = (LocalTransaction) txCtx.getCacheTransaction();
+            txTable.removeLocalTransaction(cacheTransaction);
+         }
+         throw throwable;
+      }
       if (!ctx.isInTxScope())
          transactionLog.logNoTxWrite(command);
       if (command.isSuccessful() && shouldAddMod) localTransaction.addModification(command);
@@ -229,10 +257,6 @@ public class TxInterceptor extends CommandInterceptor {
          return false;
       }
       return true;
-   }
-
-   private void markCompleted(TxInvocationContext ctx, GlobalTransaction globalTransaction, boolean committed) {
-      if (!ctx.isOriginLocal()) txTable.remoteTransactionCompleted(globalTransaction, committed);
    }
 
    @ManagedOperation(description = "Resets statistics gathered by this component")
@@ -269,5 +293,11 @@ public class TxInterceptor extends CommandInterceptor {
    @Metric(displayName = "Rollbacks", measurementType = MeasurementType.TRENDSUP, displayType = DisplayType.SUMMARY)
    public long getRollbacks() {
       return rollbacks.get();
+   }
+
+   private void removeLocalTransaction(TxInvocationContext ctx) {
+      //this is possible when run from recovery
+      if (ctx.getTransaction() != null)
+         txTable.removeLocalTransaction(ctx.getTransaction());
    }
 }

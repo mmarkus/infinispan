@@ -124,27 +124,24 @@ public class KeyAffinityServiceImpl implements KeyAffinityService {
 
       try {
          maxNumberInvariant.readLock().lock();
-         Object result;
+         Object result = null;
          try {
-            // first try to take an element without waiting
-            result = queue.poll();
-            if (result == null) {
-               // there are no elements in the queue, make sure the producer is started
-               keyProducerStartLatch.open();
-               // our address might have been removed from the consistent hash
-               if (!address.equals(getAddressForKey(address)))
-                  throw new IllegalStateException("Address " + address + " is no longer in the cluster");
-
-               result = queue.take();
+            while (result == null) {
+               // first try to take an element without waiting
+               result = queue.poll();
+               if (result == null) {
+                  // there are no elements in the queue, make sure the producer is started
+                  keyProducerStartLatch.open();
+                  // our address might have been removed from the consistent hash
+                  if (!address.equals(getAddressForKey(address)))
+                     throw new IllegalStateException("Address " + address + " is no longer in the cluster");
+               }
             }
          } finally {
             maxNumberInvariant.readLock().unlock();
          }
          exitingNumberOfKeys.decrementAndGet();
          return result;
-      } catch (InterruptedException e) {
-         Thread.currentThread().interrupt();
-         return null;
       } finally {
          if (queue.size() < maxNumberOfKeys.get() * THRESHOLD + 1) {
             keyProducerStartLatch.open();

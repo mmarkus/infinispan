@@ -27,6 +27,7 @@ import java.util.Collections;
 import org.infinispan.Cache;
 import org.infinispan.distribution.DistSyncFuncTest;
 import org.infinispan.distribution.group.Grouper;
+import org.infinispan.test.fwk.CleanupAfterMethod;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -35,6 +36,7 @@ import org.testng.annotations.Test;
  * @since 5.0
  */
 @Test (groups = "functional", testName = "distribution.GroupsChFunctionalTest")
+@CleanupAfterMethod
 public class GroupsChFunctionalTest extends DistSyncFuncTest {
    
    public GroupsChFunctionalTest() {
@@ -78,35 +80,4 @@ public class GroupsChFunctionalTest extends DistSyncFuncTest {
        Assert.assertNotSame(getOwners(k1A), getOwners(k1B));
        
     }
-    
-    public void testRehash() throws Throwable {
-        for (Cache<Object, String> c : caches) assert c.isEmpty();
-
-        GroupedKey k1 = new GroupedKey("groupA", "k1");
-        GroupedKey k2 = new GroupedKey("groupA", "k2");
-        GroupedKey k3 = new GroupedKey("groupA", "k3");
-        GroupedKey k4 = new GroupedKey("groupA", "k4");
-        
-        Assert.assertEquals(getOwners(k1), getOwners(k2));
-        Assert.assertEquals(getOwners(k1), getOwners(k3));
-        Assert.assertEquals(getOwners(k1), getOwners(k4));
-        
-        Cache<Object, String>[] owners1 = getOwners(k1);
-        Cache<Object, String>[] owners2 = getOwners(k2);
-        Cache<Object, String>[] owners3 = getOwners(k3);
-        Cache<Object, String>[] owners4 = getOwners(k4);
-        
-        removeCacheFromCluster(getOwners(k1)[0].getName());
-        
-        Assert.assertNotSame(getOwners(k1), owners1);
-        Assert.assertNotSame(getOwners(k2), owners2);
-        Assert.assertNotSame(getOwners(k3), owners3);
-        Assert.assertNotSame(getOwners(k4), owners4);
-        
-        Assert.assertEquals(getOwners(k1), getOwners(k2));
-        Assert.assertEquals(getOwners(k1), getOwners(k3));
-        Assert.assertEquals(getOwners(k1), getOwners(k4));
-        
-     }
-
 }

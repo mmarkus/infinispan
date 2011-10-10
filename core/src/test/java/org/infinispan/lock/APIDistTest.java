@@ -29,6 +29,7 @@ import org.infinispan.manager.EmbeddedCacheManager;
 import org.infinispan.test.MultipleCacheManagersTest;
 import org.infinispan.test.fwk.CleanupAfterMethod;
 import org.infinispan.test.fwk.TestCacheManagerFactory;
+import org.infinispan.transaction.LockingMode;
 import org.testng.annotations.Test;
 
 import javax.transaction.HeuristicMixedException;
@@ -56,6 +57,7 @@ public class APIDistTest extends MultipleCacheManagersTest {
 
    protected Configuration createConfig() {
       Configuration cfg = getDefaultClusteredConfig(Configuration.CacheMode.DIST_SYNC, true);
+      cfg.fluent().transaction().lockingMode(LockingMode.PESSIMISTIC);
       cfg.setL1CacheEnabled(false); // no L1 enabled
       cfg.setLockAcquisitionTimeout(100);
       cfg.setNumOwners(1);
@@ -73,7 +75,9 @@ public class APIDistTest extends MultipleCacheManagersTest {
       assert "v".equals(cache2.get(key)) : "Could not find key " + key + " on cache2";
 
       tm(0).begin();
+      log.trace("About to lock");
       cache1.getAdvancedCache().lock(key);
+      log.trace("About to get");
       assert "v".equals(cache1.get(key)) : "Could not find key " + key + " on cache1";
       tm(0).rollback();
    }
