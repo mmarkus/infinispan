@@ -45,7 +45,7 @@ import javax.transaction.xa.XAException;
  * @author Mircea.Markus@jboss.com
  * @since 5.0
  */
-public class SynchronizationAdapter extends AbstractEnlistmentAdapter implements Synchronization {
+public final class SynchronizationAdapter extends AbstractEnlistmentAdapter implements Synchronization {
 
    private static final Log log = LogFactory.getLog(SynchronizationAdapter.class);
 
@@ -57,6 +57,9 @@ public class SynchronizationAdapter extends AbstractEnlistmentAdapter implements
                                  TransactionTable transactionTable, ClusteringDependentLogic clusteringLogic,
                                  Configuration configuration) {
       super(localTransaction, commandsFactory, rpcManager, transactionTable, clusteringLogic, configuration);
+      if (localTransaction == null) {
+         throw new IllegalArgumentException("localTransaction shall not be null");
+      }
       this.localTransaction = localTransaction;
       this.txCoordinator = txCoordinator;
    }
@@ -106,13 +109,10 @@ public class SynchronizationAdapter extends AbstractEnlistmentAdapter implements
    @Override
    public boolean equals(Object o) {
       if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (o == null || SynchronizationAdapter.class != o.getClass()) return false;
 
       SynchronizationAdapter that = (SynchronizationAdapter) o;
 
-      if (localTransaction != null ? !localTransaction.equals(that.localTransaction) : that.localTransaction != null)
-         return false;
-
-      return true;
+      return localTransaction.equals(that.localTransaction);
    }
 }
