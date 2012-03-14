@@ -173,12 +173,15 @@ public class TransactionCoordinator {
          validateNotMarkedForRollback(localTransaction);
 
          if (trace) log.trace("Doing an 1PC prepare call on the interceptor chain");
-         PrepareCommand command = commandsFactory.buildPrepareCommand(localTransaction.getGlobalTransaction(), localTransaction.getModifications(), true);
+         PrepareCommand command = commandCreator.createPrepareCommand(localTransaction.getGlobalTransaction(), localTransaction.getModifications());
+         command.setOnePhaseCommit(true);
 
          try {
             invoker.invoke(ctx, command);
          } catch (Throwable e) {
-            handleCommitFailure(e, localTransaction);
+            if (!isOnePhaseTotalOrder()) { //in total order and 1PC, the rollback command is not needed
+               handleCommitFailure(e, localTransaction);
+            }
          }
       } else {
          CommitCommand commitCommand = commandCreator.createCommitCommand(localTransaction.getGlobalTransaction());
@@ -252,7 +255,8 @@ public class TransactionCoordinator {
     * @return true if it can use 1PC false otherwise
     */
    private boolean isOnePhaseTotalOrder() {
-      return configuration.isTotalOrder() && (!configuration.isRequireVersioning() || configuration.isUse1PCInTotalOrder());
+      return configuration.isTotalOrder() && (!configuration.isRequireVersioning() ||
+                                                    configuration.isUseSynchronizationForTransactions());
    }
 
    private static interface CommandCreator {

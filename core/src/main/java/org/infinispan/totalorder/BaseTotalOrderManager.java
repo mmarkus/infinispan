@@ -56,7 +56,7 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
     */
    protected volatile boolean statisticsEnabled;
    private boolean isSync;
-   private long replTimeout;
+   //private long replTimeout;
 
    @Inject
    public void inject(Configuration configuration, InvocationContextContainer invocationContextContainer,
@@ -71,7 +71,7 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
       trace = log.isTraceEnabled();
       setStatisticsEnabled(configuration.jmxStatistics().enabled());
       isSync = configuration.clustering().cacheMode().isSynchronous();
-      replTimeout = configuration.clustering().sync().replTimeout();
+      //replTimeout = configuration.clustering().sync().replTimeout();
    }
 
    @Override
@@ -92,7 +92,7 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
 
          LocalTransaction localTransaction = (LocalTransaction) ctx.getCacheTransaction();
          try {
-            localTransaction.awaitUntilModificationsApplied(replTimeout);
+            localTransaction.awaitUntilModificationsApplied();
             if (trace)
                log.tracef("Prepare succeeded on time for transaction %s, waking up..", ctx.getGlobalTransaction().prettyPrint());
          } catch (Throwable th) {
@@ -104,10 +104,15 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
    }
 
    @Override
-   public final void finishTransaction(GlobalTransaction gtx, boolean ignoreNullTxInfo) {
+   public final void finishTransaction(GlobalTransaction gtx, boolean ignoreNullTxInfo, TotalOrderRemoteTransaction transaction) {
       if (trace) log.tracef("transaction %s is finished", gtx.prettyPrint());
 
       TotalOrderRemoteTransaction remoteTransaction = (TotalOrderRemoteTransaction) transactionTable.removeRemoteTransaction(gtx);
+      
+      if (remoteTransaction == null) {
+         remoteTransaction = transaction;
+      }
+      
       if (remoteTransaction != null) {
          finishTransaction(remoteTransaction);
       } else if (!ignoreNullTxInfo) {
@@ -120,12 +125,15 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
                                           EntryVersionsMap newVersions) {
       GlobalTransaction gtx = remoteTransaction.getGlobalTransaction();
       if (trace)
-         log.tracef("Waiting until transaction %s is prepared. New versions are %s", gtx.prettyPrint(), newVersions);
+         log.tracef("%s command received. Waiting until transaction %s is prepared. New versions are %s",
+                    commit ? "Commit" : "Rollback", gtx.prettyPrint(), newVersions);
 
       boolean needsToProcessCommand;
       try {
          needsToProcessCommand = remoteTransaction.waitPrepared(commit, newVersions);
-         if (trace) log.tracef("Transaction  %s successfully finishes the waiting time", gtx.prettyPrint());
+         if (trace) log.tracef("Transaction %s successfully finishes the waiting time until prepared. " +
+                                     "%s command will be processed? %s", gtx.prettyPrint(), 
+                               commit ? "Commit" : "Rollback", needsToProcessCommand ? "yes" : "no");
       } catch (InterruptedException e) {
          log.timeoutWaitingUntilTransactionPrepared(gtx.prettyPrint());
          needsToProcessCommand = false;
@@ -133,8 +141,11 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
       return needsToProcessCommand;
    }
 
-   @Override
-   public void finishTransaction(TotalOrderRemoteTransaction remoteTransaction) {
+    /**
+    * Remove the keys from the map (if their didn't change) and release the count down latch, unblocking the next
+    * transaction
+    */
+   protected void finishTransaction(TotalOrderRemoteTransaction remoteTransaction) {
       TxDependencyLatch latch = remoteTransaction.getLatch();
       if (trace) log.tracef("Releasing resources for transaction %s", remoteTransaction);
       latch.countDown();
@@ -185,4 +196,10 @@ public abstract class BaseTotalOrderManager implements TotalOrderManager {
       return statisticsEnabled ? System.nanoTime() : -1;
    }
 
+   protected final void copyLookedUpEntriesToRemoteContext(TxInvocationContext ctx) {
+      LocalTransaction localTransaction = localTransactionMap.get(ctx.getGlobalTransaction());
+      if (localTransaction != null) {
+         ctx.putLookedUpEntries(localTransaction.getLookedUpEntries());
+      }
+   }  
 }
