@@ -54,7 +54,7 @@ def help_and_exit():
 def validate_version(version):  
   version_pattern = get_version_pattern()
   if version_pattern.match(version):
-    return version.strip().upper()
+    return version.strip()
   else:
     prettyprint("Invalid version '"+version+"'!\n", Levels.FATAL)
     help_and_exit()
@@ -179,7 +179,7 @@ def update_versions(base_dir, version):
   git.commit(modified_files, "'Release Script: update versions for %s'" % version)
   
   # And return the next version
-  return pieces[0] + '.' + pieces[1] + '.' + str(int(pieces[2])+1) + ('.FINAL' if snapshot else '-SNAPSHOT')
+  return pieces[0] + '.' + pieces[1] + '.' + str(int(pieces[2])+1) + ('.Final' if snapshot else '-SNAPSHOT')
 
 def get_module_name(pom_file):
   tree = ElementTree()
