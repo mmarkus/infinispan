@@ -468,7 +468,11 @@ public class ConditionalOperationsConcurrentTest extends MultipleCacheManagersTe
 
       @Override
       public void beforeOperation(Cache cache) {
-         cache.remove(SHARED_KEY);
+         try {
+            cache.remove(SHARED_KEY);
+         } catch (CacheException e) {
+            log.debug("Write skew check error while removing the key", e);
+         }
       }
    }
 
@@ -489,7 +493,11 @@ public class ConditionalOperationsConcurrentTest extends MultipleCacheManagersTe
 
       @Override
       public void beforeOperation(Cache cache) {
-         cache.put(SHARED_KEY, "someValue");
+         try {
+            cache.put(SHARED_KEY, "someValue");
+         } catch (CacheException e) {
+            log.warn("Write skew check error while inserting the key", e);
+         }
       }
 
       @Override
