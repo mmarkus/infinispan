@@ -9,6 +9,7 @@ import org.infinispan.commands.read.MapCombineCommand;
 import org.infinispan.commands.read.ReduceCommand;
 import org.infinispan.commands.remote.CacheRpcCommand;
 import org.infinispan.commands.remote.ClusteredGetCommand;
+import org.infinispan.commands.remote.GetKeysInGroup;
 import org.infinispan.commands.remote.MultipleRpcCommand;
 import org.infinispan.commands.remote.SingleRpcCommand;
 import org.infinispan.commands.remote.recovery.CompleteTransactionCommand;
@@ -215,6 +216,9 @@ public class RemoteCommandsFactory {
                break;
             case CompleteTransactionCommand.COMMAND_ID:
                command = new CompleteTransactionCommand(cacheName);
+               break;
+            case GetKeysInGroup.COMMAND_ID:
+               command = new GetKeysInGroup(cacheName);
                break;
             case CreateCacheCommand.COMMAND_ID:
                command = new CreateCacheCommand(cacheName);

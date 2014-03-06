@@ -604,6 +604,12 @@ public final class SecureCacheImpl<K, V> implements SecureCache<K, V> {
    }
 
    @Override
+   public <G, KG> Set<KG> getGroupKeys(G group) {
+      authzManager.checkPermission(AuthorizationPermission.READ);
+      return delegate.getGroupKeys(group);
+   }
+
+   @Override
    public boolean equals(Object o) {
       return delegate.equals(o);
    }

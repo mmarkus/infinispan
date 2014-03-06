@@ -1,35 +1,57 @@
 package org.infinispan.distribution.group;
 
-import static org.infinispan.commons.util.ReflectionUtil.invokeAccessibly;
-
+import org.infinispan.commands.CommandsFactory;
+import org.infinispan.commands.remote.GetKeysInGroup;
 import org.infinispan.commons.util.CollectionFactory;
 import org.infinispan.commons.util.InfinispanCollections;
 import org.infinispan.commons.util.ReflectionUtil;
 import org.infinispan.commons.util.Util;
+import org.infinispan.distribution.DistributionManager;
+import org.infinispan.factories.annotations.Inject;
+import org.infinispan.remoting.responses.Response;
+import org.infinispan.remoting.responses.SuccessfulResponse;
+import org.infinispan.remoting.rpc.RpcManager;
+import org.infinispan.remoting.transport.Address;
 
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+
+import static org.infinispan.commons.util.ReflectionUtil.invokeAccessibly;
 
 
 public class GroupManagerImpl implements GroupManager {
-    
+
+    private DistributionManager dm;
+    private RpcManager rpcManager;
+    private CommandsFactory commandsFactory;
+
     private static interface GroupMetadata {
-        
+
         GroupMetadata NONE = new GroupMetadata() {
-            
+
             @Override
             public String getGroup(Object instance) {
                 return null;
             }
-            
-        }; 
-        
+
+        };
+
         String getGroup(Object instance);
-        
+
     }
-    
+
+    @Inject
+    public void init(DistributionManager dm, RpcManager rpcManager, CommandsFactory commandsFactory) {
+       this.dm = dm;
+       this.rpcManager = rpcManager;
+       this.commandsFactory = commandsFactory;
+    }
+
     private static class GroupMetadataImpl implements GroupMetadata {
         private final Method method;
 
@@ -45,9 +67,9 @@ public class GroupManagerImpl implements GroupManager {
         public String getGroup(Object instance) {
             return String.class.cast(invokeAccessibly(instance, method, Util.EMPTY_OBJECT_ARRAY));
         }
-        
+
     }
-    
+
     private static GroupMetadata createGroupMetadata(Class<?> clazz) {
         Collection<Method> possibleMethods = ReflectionUtil.getAllMethods(clazz, Group.class);
         if (possibleMethods.isEmpty())
@@ -60,7 +82,7 @@ public class GroupManagerImpl implements GroupManager {
 
     private final ConcurrentMap<Class<?>, GroupMetadata> groupMetadataCache;
     private final List<Grouper<?>> groupers;
-    
+
     public GroupManagerImpl(List<Grouper<?>> groupers) {
         this.groupMetadataCache = CollectionFactory.makeConcurrentMap();
         if (groupers != null)
@@ -68,7 +90,7 @@ public class GroupManagerImpl implements GroupManager {
         else
             this.groupers = InfinispanCollections.emptyList();
     }
-    
+
     @Override
     public String getGroup(Object key) {
         GroupMetadata metadata = getMetadata(key);
@@ -77,15 +99,26 @@ public class GroupManagerImpl implements GroupManager {
         } else
             return applyGroupers(null, key);
     }
-    
-    private String applyGroupers(String group, Object key) {
+
+   @Override
+   public <G, KG> Set<KG> getKeysInGroup(G group) {
+      Address address = dm.getPrimaryLocation(group);
+      GetKeysInGroup gkig = commandsFactory.buildGetKeysInGroupCommand(group);
+      Map<Address,Response> resp = rpcManager.invokeRemotely(Collections.singleton(address), gkig, rpcManager.getDefaultRpcOptions(true));
+      Response response = resp.get(address);
+      if (response == null || !response.isSuccessful())
+         throw new IllegalStateException();
+      return (Set<KG>) ((SuccessfulResponse)response).getResponseValue();
+   }
+
+   private String applyGroupers(String group, Object key) {
         for (Grouper<?> grouper : groupers) {
             if (grouper.getKeyType().isAssignableFrom(key.getClass()))
                 group = ((Grouper<Object>) grouper).computeGroup(key, group);
         }
         return group;
     }
-    
+
     private GroupMetadata getMetadata(final Object key) {
         final Class<?> keyClass = key.getClass();
         GroupMetadata groupMetadata = groupMetadataCache.get(keyClass);

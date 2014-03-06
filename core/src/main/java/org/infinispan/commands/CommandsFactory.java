@@ -1,5 +1,6 @@
 package org.infinispan.commands;
 
+import org.infinispan.commands.remote.GetKeysInGroup;
 import org.infinispan.metadata.Metadata;
 import org.infinispan.atomic.Delta;
 import org.infinispan.commands.control.LockControlCommand;
@@ -367,4 +368,6 @@ public interface CommandsFactory {
     * @return created CancelCommandCommand
     */
    CancelCommand buildCancelCommandCommand(UUID commandUUID);
+
+   GetKeysInGroup buildGetKeysInGroupCommand(Object group);
 }

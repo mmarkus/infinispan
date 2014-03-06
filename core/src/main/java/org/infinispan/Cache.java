@@ -208,4 +208,6 @@ public interface Cache<K, V> extends BasicCache<K, V>, BatchingCache, FilteringL
     */
    @Override
    Set<Map.Entry<K, V>> entrySet();
+
+   <G, KG> Set<KG> getGroupKeys(G group);
 }

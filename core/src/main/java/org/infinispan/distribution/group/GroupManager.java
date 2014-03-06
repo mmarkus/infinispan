@@ -1,5 +1,7 @@
 package org.infinispan.distribution.group;
 
+import java.util.Set;
+
 /**
  * Control's key grouping.
  * 
@@ -16,4 +18,5 @@ public interface GroupManager {
 	 */
 	String getGroup(Object key);
 
+   <G, KG> Set<KG> getKeysInGroup(G group);
 }

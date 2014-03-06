@@ -212,6 +212,10 @@ public class InterceptorChainFactory extends AbstractNamedCacheComponentFactory 
          interceptorChain.appendInterceptor(createInterceptor(new DeadlockDetectingInterceptor(), DeadlockDetectingInterceptor.class), false);
       }
 
+      if (configuration.clustering().hash().groups().enabled()) {
+         interceptorChain.appendInterceptor(createInterceptor(new GroupingInterceptor(), GroupingInterceptor.class), false);
+      }
+
       if (configuration.clustering().l1().enabled()) {
          if (configuration.transaction().transactionMode().isTransactional()) {
             interceptorChain.appendInterceptor(createInterceptor(new L1TxInterceptor(), L1TxInterceptor.class), false);

@@ -1,6 +1,7 @@
 package org.infinispan.util.mocks;
 
 import org.infinispan.Cache;
+import org.infinispan.commands.remote.GetKeysInGroup;
 import org.infinispan.metadata.Metadata;
 import org.infinispan.atomic.Delta;
 import org.infinispan.commands.CancelCommand;
@@ -313,5 +314,10 @@ public class ControlledCommandFactory implements CommandsFactory {
    @Override
    public CreateCacheCommand buildCreateCacheCommand(String tmpCacheName, String defaultTmpCacheConfigurationName, boolean start, int size) {
       return actual.buildCreateCacheCommand(tmpCacheName, defaultTmpCacheConfigurationName, start, size);
+   }
+
+   @Override
+   public GetKeysInGroup buildGetKeysInGroupCommand(Object group) {
+      return actual.buildGetKeysInGroupCommand(group);
    }
 }

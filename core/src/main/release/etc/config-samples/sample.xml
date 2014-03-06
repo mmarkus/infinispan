@@ -253,6 +253,7 @@
             timeout="240000"
             fetchInMemoryState="false"
             chunkSize="10000"
+            awaitInitialTransfer="false"
          />
 
          <!--

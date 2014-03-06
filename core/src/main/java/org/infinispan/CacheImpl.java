@@ -62,6 +62,7 @@ import org.infinispan.context.InvocationContextContainer;
 import org.infinispan.context.InvocationContextFactory;
 import org.infinispan.context.impl.TxInvocationContext;
 import org.infinispan.distribution.DistributionManager;
+import org.infinispan.distribution.group.GroupManager;
 import org.infinispan.eviction.EvictionManager;
 import org.infinispan.factories.ComponentRegistry;
 import org.infinispan.factories.annotations.ComponentName;
@@ -135,6 +136,7 @@ public class CacheImpl<K, V> implements AdvancedCache<K, V> {
    private TransactionCoordinator txCoordinator;
    private AuthorizationManager authorizationManager;
    private GlobalConfiguration globalCfg;
+   private GroupManager groupManager;
    private boolean isClassLoaderInContext;
 
    public CacheImpl(String name) {
@@ -160,7 +162,7 @@ public class CacheImpl<K, V> implements AdvancedCache<K, V> {
                                   TransactionTable txTable, RecoveryManager recoveryManager, TransactionCoordinator txCoordinator,
                                   LockManager lockManager,
                                   AuthorizationManager authorizationManager,
-                                  GlobalConfiguration globalCfg) {
+                                  GlobalConfiguration globalCfg, GroupManager groupManager) {
       this.commandsFactory = commandsFactory;
       this.invoker = interceptorChain;
       this.config = configuration;
@@ -183,6 +185,7 @@ public class CacheImpl<K, V> implements AdvancedCache<K, V> {
       this.lockManager = lockManager;
       this.authorizationManager = authorizationManager;
       this.globalCfg = globalCfg;
+      this.groupManager = groupManager;
    }
 
    private void assertKeyNotNull(Object key) {
@@ -1498,5 +1501,10 @@ public class CacheImpl<K, V> implements AdvancedCache<K, V> {
    )
    public Properties getConfigurationAsProperties() {
       return new PropertyFormatter().format(config);
+   }
+
+   @Override
+   public <G, KG> Set<KG> getGroupKeys(G group) {
+      return groupManager.getKeysInGroup(group);
    }
 }

@@ -1,6 +1,7 @@
 package org.infinispan.commons.api;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 

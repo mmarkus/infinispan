@@ -1,7 +1,9 @@
 package org.infinispan.commands;
 
 import org.infinispan.Cache;
+import org.infinispan.commands.remote.GetKeysInGroup;
 import org.infinispan.context.InvocationContextFactory;
+import org.infinispan.distribution.group.GroupManager;
 import org.infinispan.metadata.Metadata;
 import org.infinispan.atomic.Delta;
 import org.infinispan.commands.control.LockControlCommand;
@@ -115,6 +117,7 @@ public class CommandsFactoryImpl implements CommandsFactory {
    private BackupSender backupSender;
    private CancellationService cancellationService;
    private TimeService timeService;
+   private GroupManager groupManager;
 
    private Map<Byte, ModuleCommandInitializer> moduleCommandInitializers;
 
@@ -126,7 +129,7 @@ public class CommandsFactoryImpl implements CommandsFactory {
                                  RecoveryManager recoveryManager, StateProvider stateProvider, StateConsumer stateConsumer,
                                  LockManager lockManager, InternalEntryFactory entryFactory, MapReduceManager mapReduceManager, 
                                  StateTransferManager stm, BackupSender backupSender, CancellationService cancellationService,
-                                 TimeService timeService) {
+                                 TimeService timeService, GroupManager groupManager) {
       this.dataContainer = container;
       this.notifier = notifier;
       this.cache = cache;
@@ -146,6 +149,7 @@ public class CommandsFactoryImpl implements CommandsFactory {
       this.backupSender = backupSender;
       this.cancellationService = cancellationService;
       this.timeService = timeService;
+      this.groupManager = groupManager;
    }
 
    @Start(priority = 1)
@@ -408,6 +412,10 @@ public class CommandsFactoryImpl implements CommandsFactory {
             CompleteTransactionCommand ccc = (CompleteTransactionCommand)c;
             ccc.init(recoveryManager);
             break;
+         case GetKeyValueCommand.COMMAND_ID:
+            GetKeysInGroup gkg = (GetKeysInGroup)c;
+            gkg.init(groupManager);
+            break;
          case ApplyDeltaCommand.COMMAND_ID:
             break;
          case CreateCacheCommand.COMMAND_ID:
@@ -523,5 +531,10 @@ public class CommandsFactoryImpl implements CommandsFactory {
    @Override
    public CancelCommand buildCancelCommandCommand(UUID commandUUID) {
       return new CancelCommand(cacheName, commandUUID);
+   }
+
+   @Override
+   public GetKeysInGroup buildGetKeysInGroupCommand(Object group) {
+      return new GetKeysInGroup(cacheName, group);
    }
 }
