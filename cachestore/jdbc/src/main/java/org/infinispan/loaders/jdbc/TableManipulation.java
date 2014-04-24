@@ -102,17 +102,26 @@ public class TableManipulation implements Cloneable {
 
    public boolean tableExists(Connection connection, String tableName) throws CacheLoaderException {
      assertNotNull(tableName, "table name is mandatory");
+     Statement stmt = null;
      ResultSet rs = null;
      try {
-        DatabaseMetaData metaData = connection.getMetaData();
-        rs = metaData.getTables(null, null, tableName, new String[] {"TABLE"});
-        return rs.next();
+        stmt = connection.createStatement();
+        if (getDatabaseType() == DatabaseType.ORACLE) { // oracle requires special handling, see ISPN-3006
+           String query = "SELECT count(*) from (SELECT 1 FROM " + tableName + " WHERE ROWNUM = 1) T";
+           rs = stmt.executeQuery(query);
+           return rs.next();
+        } else {
+           DatabaseMetaData metaData = connection.getMetaData();
+           rs = metaData.getTables(null, null, tableName, new String[] {"TABLE"});
+           return rs.next();
+        }
      } catch (SQLException e) {
         if (log.isTraceEnabled())
            log.tracef(e, "SQLException occurs while checking the table %s", tableName);
         return false;
      } finally {
         JdbcUtil.safeClose(rs);
+        JdbcUtil.safeClose(stmt);
      }
    }
 
