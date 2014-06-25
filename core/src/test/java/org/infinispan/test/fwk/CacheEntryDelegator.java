@@ -152,8 +152,4 @@ public class CacheEntryDelegator implements CacheEntry {
       }
    }
 
-   @Override
-   public CacheEntry immutableCopy() {
-      return delegate.immutableCopy();
-   }
 }

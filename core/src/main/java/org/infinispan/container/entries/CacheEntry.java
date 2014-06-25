@@ -131,5 +131,4 @@ public interface CacheEntry<K, V> extends Cloneable, Map.Entry<K, V>, MetadataAw
 
    public CacheEntry clone();
 
-   public CacheEntry<K,V> immutableCopy();
 }

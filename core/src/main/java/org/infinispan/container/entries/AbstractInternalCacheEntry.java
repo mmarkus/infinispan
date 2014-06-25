@@ -1,6 +1,5 @@
 package org.infinispan.container.entries;
 
-import org.infinispan.container.entries.immutable.ImmutableInternalCacheEntry;
 import org.infinispan.metadata.Metadata;
 import org.infinispan.container.DataContainer;
 
@@ -140,11 +139,5 @@ public abstract class AbstractInternalCacheEntry implements InternalCacheEntry {
       } catch (CloneNotSupportedException e) {
          throw new RuntimeException("Should never happen!", e);
       }
-   }
-
-   @Override
-   public CacheEntry immutableCopy() {
-      AbstractInternalCacheEntry dolly = clone();
-      return new ImmutableInternalCacheEntry(dolly);
    }
 }
