@@ -4,6 +4,7 @@ import static org.infinispan.commons.util.Util.toStr;
 
 import org.infinispan.commons.util.Immutables;
 import org.infinispan.container.DataContainer;
+import org.infinispan.container.entries.CacheEntry;
 import org.infinispan.container.entries.InternalCacheEntry;
 import org.infinispan.container.entries.InternalCacheValue;
 import org.infinispan.metadata.Metadata;
