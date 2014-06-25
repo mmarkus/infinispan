@@ -3,6 +3,7 @@ package org.infinispan.container.entries;
 import org.infinispan.atomic.impl.AtomicHashMap;
 import org.infinispan.commons.util.Util;
 import org.infinispan.container.DataContainer;
+import org.infinispan.container.entries.immutable.ImmutableMVCCEntry;
 import org.infinispan.metadata.Metadata;
 import org.infinispan.util.logging.Log;
 import org.infinispan.util.logging.LogFactory;
@@ -272,6 +273,15 @@ public class ReadCommittedEntry implements MVCCEntry {
    }
 
    @Override
+   public ReadCommittedEntry clone() {
+      try {
+         return (ReadCommittedEntry) super.clone();
+      } catch (CloneNotSupportedException e) {
+         throw new IllegalStateException(e);
+      }
+   }
+
+   @Override
    public String toString() {
       return getClass().getSimpleName() + "(" + Util.hexIdHashCode(this) + "){" +
             "key=" + toStr(key) +
@@ -296,5 +306,11 @@ public class ReadCommittedEntry implements MVCCEntry {
          return true;
       }
       return false;
+   }
+
+   @Override
+   public CacheEntry immutableCopy() {
+      ReadCommittedEntry dolly = clone();
+      return new ImmutableMVCCEntry(dolly);
    }
 }

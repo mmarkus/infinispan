@@ -142,4 +142,18 @@ public class CacheEntryDelegator implements CacheEntry {
    public boolean undelete(boolean doUndelete) {
       return delegate.undelete(doUndelete);
    }
+
+   @Override
+   public CacheEntry clone() {
+      try {
+         return (CacheEntry) super.clone();
+      } catch (CloneNotSupportedException e) {
+         throw new AssertionError(e);
+      }
+   }
+
+   @Override
+   public CacheEntry immutableCopy() {
+      return delegate.immutableCopy();
+   }
 }
